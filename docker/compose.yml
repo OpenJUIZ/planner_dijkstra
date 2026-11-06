@@ -1,0 +1,26 @@
+# mobile_sim と planner_dijkstra を一緒に動かす
+#   docker compose -f docker/compose.yml up
+# ブラウザで http://localhost:8003/ (経路計画) と http://localhost:8000/ (シミュレータ) を開く
+services:
+  mobile_sim:
+    # 別のイメージは MOBILE_SIM_IMAGE で渡す
+    image: ${MOBILE_SIM_IMAGE:-ghcr.io/openjuiz/mobile_sim:0.3.2}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+  planner_dijkstra:
+    image: ghcr.io/openjuiz/planner_dijkstra:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    depends_on:
+      - mobile_sim
+    environment:
+      MOBILE_SIM_URL: http://mobile_sim:8000
+      # 既定の地図の代わりに使う地図 (例: mapper_gmapping で保存した /maps/map.yaml)
+      # PLANNER_MAP: /maps/map.yaml
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./maps:/maps
+    restart: unless-stopped
