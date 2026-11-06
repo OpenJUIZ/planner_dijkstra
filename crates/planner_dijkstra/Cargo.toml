@@ -1,0 +1,19 @@
+[package]
+name = "planner_dijkstra"
+description = "juiz component of planner_dijkstra: a Dijkstra global path planner on an occupancy grid."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+juiz_sdk.workspace = true
+juiz_std_types.workspace = true
+planner_dijkstra_core.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

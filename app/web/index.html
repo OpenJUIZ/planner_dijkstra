@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>planner_dijkstra</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>planner_dijkstra</h1>
+    <span id="connection" class="status">接続中…</span>
+    <span id="sim_connection" class="status"></span>
+  </header>
+  <main>
+    <section id="view">
+      <canvas id="map" width="640" height="640" aria-label="地図と経路"></canvas>
+      <p class="hint" id="legend">
+        <span class="key path"></span>経路
+        <span class="key goal"></span>目標
+        <span class="key start"></span>出発(計画に使った姿勢)
+        <span class="key truth"></span>真の姿勢(mobile_sim)
+        <span class="key amcl"></span>amcl_pose
+      </p>
+    </section>
+    <aside>
+      <h2>目標</h2>
+      <button id="set_goal" type="button">目標を置く</button>
+      <p class="hint">押してから地図の上で、位置を押して向きの方へドラッグする(RViz の 2D Nav Goal と同じ)</p>
+      <label>出発の姿勢
+        <select id="start_source">
+          <option value="auto" selected>自動(amcl_pose があればそれ、無ければ mobile_sim の真の姿勢)</option>
+          <option value="amcl">トピック amcl_pose(localization_amcl)</option>
+          <option value="truth">mobile_sim の真の姿勢</option>
+        </select>
+      </label>
+      <label><input id="replan" type="checkbox"> 1 秒ごとに計画し直す(ロボットが動いても経路が追いつく)</label>
+      <button id="replan_now" type="button">今の姿勢から計画し直す</button>
+      <h2>地図</h2>
+      <div class="row">
+        <button id="map_sim" type="button" hidden>mobile_sim の地図を使う</button>
+      </div>
+      <label>ファイル <input id="map_path" type="text" value="assets/maps/default.yaml" size="20"></label>
+      <p class="hint">ROS map_server の YAML。planner_dijkstra のカレントディレクトリ(juiz run なら展開先)からの相対パス</p>
+      <button id="map_load" type="button">ファイルを読む</button>
+      <p id="message" class="hint" role="status"></p>
+      <h2>結果</h2>
+      <dl id="state">
+        <dt>状態</dt><dd id="s_status">-</dd>
+        <dt>出発</dt><dd id="s_start">-</dd>
+        <dt>目標</dt><dd id="s_goal">-</dd>
+        <dt>長さ</dt><dd id="s_length">-</dd>
+        <dt>点の数</dt><dd id="s_points">-</dd>
+        <dt>探索した格子</dt><dd id="s_expanded">-</dd>
+        <dt>計算時間</dt><dd id="s_time">-</dd>
+        <dt>amcl_pose</dt><dd id="s_amcl">-</dd>
+        <dt>真の姿勢</dt><dd id="s_truth">-</dd>
+        <dt>地図</dt><dd id="s_map">-</dd>
+        <dt>計画した回数</dt><dd id="s_count">-</dd>
+      </dl>
+    </aside>
+  </main>
+  <script src="planner_dijkstra.js"></script>
+</body>
+</html>
