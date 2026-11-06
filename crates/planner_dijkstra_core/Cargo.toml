@@ -1,0 +1,18 @@
+[package]
+name = "planner_dijkstra_core"
+description = "Occupancy grid and Dijkstra global path planner (no juiz dependency)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# juiz_sdk と同じ版(画像の型を受け渡すため)
+image = { version = "0.24", default-features = false, features = ["png", "pnm"] }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+thiserror = "1"
+
+[dev-dependencies]
+tempfile = "3"
