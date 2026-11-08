@@ -16,7 +16,7 @@ mobile_sim の地図・ロボットの姿勢・目標の姿勢を受け取り、
 | 地図 | 自分で YAML を読む(既定は mobile_sim と同じ地図)。`planner_set_map` で画像を渡して差し替える | 画面の「mobile_sim の地図を使う」で mobile_sim の `get_map`・`get_map_info` をそのまま渡せる(localization_amcl の `amcl_set_map` と同じ形) |
 | 格子の判定 | map_server の trinary(占有 > occupied_thresh、空き < free_thresh、ほかは不明)。不明は既定で通らない(`allow_unknown`) | mobile_sim・AMCL と同じ |
 | 探索 | 8 近傍(`diagonal: false` で 4 近傍)、辺の重みは格子の中心どうしの距離。斜めは角をかすめない(間の 2 つの格子も空きのときだけ) | 壁の角をすり抜けない |
-| フットプリント | 考えない(最初の版) | 依頼のとおり。経路は壁すれすれを通るので、次の版でコストマップ(膨張)を入れる |
+| フットプリント | 0.1.0 は考えない。0.2.0 から障害物を `robot_radius + safety_margin` だけ膨らませ、`inflation_radius` まで重みを上げる(#8) | 0.1.0 の経路は壁すれすれを通り、planner_dwa(半径 0.2 m)が扉の角で stuck になった |
 | 出発の姿勢 | トピック `amcl_pose`(Pose2DStamped)で覚える。画面では、来ていなければ mobile_sim の真の姿勢を使う | 自己位置は localization_amcl が出す。AMCL が無くても試せるように |
 | 目標 | トピック `goal`(Pose2DStamped)、または画面で地図をクリック・ドラッグ | RViz の 2D Nav Goal と同じ操作 |
 | 経路 | トピック `path` に出す。`{header, ok, message, start, goal, poses: [Pose2D], length, cost, expanded, time_ms}` | juiz_std に Path の型が無いので JSON の object。求まらないときは `ok: false` と理由(トピックで動かすのでエラーにしない) |
@@ -62,11 +62,25 @@ AMCL の `amcl_pose` は planner_dijkstra に届かない(試した: AMCL の代
   IPC の応答待ちで止まり、planner_dijkstra が終了する(`receiving a response from ipc://… failed: Resource temporarily unavailable`)。
 
 最初の版はこのまま(画面では mobile_sim の真の姿勢を使える。トピック `amcl_pose` は、届けば使う)。
-juiz 側で、要求の転送に「通った System」を持たせて輪を止めれば、planner_dijkstra が mobile_sim と AMCL の両方をつなげる。juiz に issue を出すか相談する。
+juiz 側で、要求の転送に「通った System」を持たせて輪を止めれば、planner_dijkstra が mobile_sim と AMCL の両方をつなげる(OpenJUIZ/juiz#449)。
+
+解決(2026-11-08、#5): navigation_manager 0.2.0 からは、根の navigation_hub が葉(localization_amcl・planner_dijkstra・planner_dwa)を
+subsystem に持ち、葉の出すトピックを `nav_relay` で `nav/...` に中継する。`navigation-manager stack` は planner_dijkstra の conf の
+subsystem を消し、`amcl_pose` を `nav/amcl_pose` に替えて起動するので、AMCL の推定姿勢が届く。planner_dijkstra 側の変更は要らない。
+
+### ロボットの大きさ(#8、0.2.0)
+
+- 距離: 各格子の中心から一番近い `Occupied` の格子の中心までの距離 `d`(不明の格子は膨らませない)
+- `d <= robot_radius + safety_margin`(既定 0.25 m)は通れない。`d < inflation_radius`(既定 0.6 m)は 1 歩の重みを
+  `1 + inflation_weight × ((inflation_radius - d) / (inflation_radius - lethal))²` 倍にする(ROS costmap_2d の inflation と同じ考え。減衰は 2 乗)
+- 出発・目標が通れない範囲の空きの格子にあるときは、空きの格子をたどって(壁を越えずに)一番近い通れる格子に寄せる。
+  寄せてよい長さは `2 × (robot_radius + safety_margin) + 2 格子`。出発を寄せたときは、出発の位置から寄せた格子へ向かう。
+  目標を寄せたときは寄せた格子で終える(向きは目標の向き)。障害物の格子そのものの上はエラーのまま
+- 確かめたこと: 既定の地図で左の部屋から (2.5, -3.0) へ。0.1.0 は扉の角から 0.05 m 以内を通ったが、0.2.0 は 0.25 m より離れ、扉の中ほどを通る
 
 ## この先(別の issue)
 
-- フットプリント: 地図の障害物をロボットの半径だけ膨らませたコストマップで探索する(壁から離れる重みも)
+- ~~フットプリント: 地図の障害物をロボットの半径だけ膨らませたコストマップで探索する(壁から離れる重みも)~~ 0.2.0 で入れた(#8)
 - A*(ヒューリスティック)と、経路の間引き・平滑化
 - mobile_sim の画面に経路(トピック path)を重ねて描く
 - 経路をたどる制御(cmd_vel を出すローカルプランナ)

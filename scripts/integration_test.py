@@ -7,7 +7,7 @@ mobile_sim の真の姿勢から目標までの経路を求め、壁の上の目
   scripts/dev_plugin.sh
   python3 scripts/integration_test.py --mobile-sim <mobile_sim のリポジトリ> [--juiz <juiz のパス>] [--ui SCREENSHOT]
     mobile_sim は app/plugins/<target>/ にプラグインを置いておく(mobile_sim の scripts/dev_plugin.sh)
-  python3 scripts/integration_test.py --mobile-sim-juizapp mobile_sim-0.3.3.juizapp --juizapp dist/planner_dijkstra-0.1.0.juizapp
+  python3 scripts/integration_test.py --mobile-sim-juizapp mobile_sim-0.3.3.juizapp --juizapp dist/planner_dijkstra-0.2.0.juizapp
     パッケージで動かす(ポートは mobile_sim 8000、planner_dijkstra 8003)
   python3 scripts/integration_test.py --sim-url http://localhost:8000 --planner-url http://localhost:8003
     もう動いている mobile_sim と planner_dijkstra を試す(docker compose など)
@@ -287,6 +287,36 @@ def run(sim, base):
     back = planner_call(base, "load_map0", "load_map", {"map": "assets/maps/default.yaml"})
     check(back["path"].endswith("assets/maps/default.yaml") and back["version"] == new_info["version"] + 1,
           "load_map reads the YAML again")
+
+    # 7) ロボットの大きさ(issue #8): 経路は扉の角から robot_radius + safety_margin より離れ、壁のそばの目標は寄せる
+    opts = planner_call(base, "get_state0", "get_state")["options"]
+    check(opts["robot_radius"] == 0.2 and opts["safety_margin"] == 0.05, f"inflation options from app.conf ({opts})")
+    door = planner_call(base, "plan0", "plan", {"start": pose(*start), "goal": pose(2.5, -3.0, 0.0)})
+    check(door["ok"], "a path to (2.5, -3.0) through the doorway")
+    at_door = [xy(p)[1] for p in door["poses"] if 1.4 < xy(p)[0] < 1.6]
+    check(at_door and all(-0.7 < y < 0.7 for y in at_door),
+          f"the path keeps away from the corners of the doorway (y at the partition: {min(at_door):.2f}..{max(at_door):.2f})")
+    near = planner_call(base, "plan0", "plan", {"start": pose(*start), "goal": pose(2.5, -4.85, 0.0)})
+    moved = near.get("goal_moved_to")
+    check(near["ok"] and moved and moved["y"] > -4.7 and xy(near["poses"][-1]) == (moved["x"], moved["y"]),
+          f"a goal next to the outer wall is moved away from it ({near['message']})")
+    # 膨らませ方を替える。0 にすると 0.1.0 と同じく角をかすめる
+    o = planner_call(base, "set_inflation0", "set_inflation",
+                     {"robot_radius": 0.0, "safety_margin": 0.0, "inflation_radius": 0.0, "inflation_weight": 0.0})
+    check(o["robot_radius"] == 0.0 and o["inflation_weight"] == 0.0, "set_inflation changes the options")
+    raw = planner_call(base, "plan0", "plan", {"start": pose(*start), "goal": pose(2.5, -3.0, 0.0)})
+    raw_door = [xy(p)[1] for p in raw["poses"] if 1.4 < xy(p)[0] < 1.6]
+    check(raw["ok"] and min(raw_door) < -0.85, f"without inflation the path hugs the corner (y {min(raw_door):.2f})")
+    o = planner_call(base, "set_inflation0", "set_inflation", {"robot_radius": 0.2, "safety_margin": 0.05,
+                                                              "inflation_radius": 0.6, "inflation_weight": 2.0})
+    check(o["robot_radius"] == 0.2, "set_inflation restores the options")
+    o = planner_call(base, "set_inflation0", "set_inflation", {"safety_margin": None, "robot_radius": None,
+                                                              "inflation_radius": None, "inflation_weight": None})
+    check(o["robot_radius"] == 0.2 and o["inflation_weight"] == 2.0, "set_inflation keeps the values not given")
+    img = planner_call(base, "get_costmap0", "get_costmap", raw=True)
+    check(img[:8] == b"\x89PNG\r\n\x1a\n", "get_costmap returns a PNG")
+    # 画面のテストのために、最後の経路を捨てておく
+    planner_call(base, "load_map0", "load_map", {"map": "assets/maps/default.yaml"})
 
 
 if __name__ == "__main__":
