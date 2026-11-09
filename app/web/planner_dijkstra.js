@@ -1,7 +1,7 @@
 // planner_dijkstra のブラウザ画面
 //
 // juiz の HTTP ブローカーの /api/container_process/call で ContainerProcess を呼ぶ。
-// - コンテナ dijkstra_planner: get_state(5 Hz)、get_map と get_map_info(地図が変わったとき)、
+// - コンテナ dijkstra_planner: get_state(5 Hz)、get_map(または膨らませた get_costmap)と get_map_info(地図が変わったとき)、
 //   set_goal(出発に amcl_pose を使うとき)、plan(出発に mobile_sim の真の姿勢を使うとき)、
 //   set_map(multipart で画像を渡す)、load_map
 // - mobile_sim(subsystem としてつながっていれば): get_state(真の姿勢)、get_map と get_map_info(地図)
@@ -101,8 +101,10 @@ class MapLayer {
     this.version = -1;
   }
 
-  async load(client) {
-    const blob = await client.call("planner_get_map", {}, true);
+  // costmap が true で planner_get_costmap があれば、膨らませた地図を描く
+  async load(client, costmap = false) {
+    const type = costmap && client.has("planner_get_costmap") ? "planner_get_costmap" : "planner_get_map";
+    const blob = await client.call(type, {}, true);
     const info = await client.call("planner_get_map_info");
     this.image = await loadImage(blob);
     this.info = info;
@@ -255,7 +257,9 @@ const MESSAGES = {
   "the goal is outside the map": "目標が地図の外です",
   "the start is on an obstacle": "出発が障害物の上です",
   "the goal is on an obstacle": "目標が障害物の上です",
-  "no path from the start to the goal": "出発から目標へ行く道がありません",
+  "no path from the start to the goal": "出発から目標へ行く道がありません(ロボットが通れる幅の道が無い)",
+  "the start is too close to obstacles and no free cell is near it": "出発が障害物に近すぎ、近くに通れる場所がありません",
+  "the goal is too close to obstacles and no free cell is near it": "目標が障害物に近すぎ、近くに通れる場所がありません",
   "no plan yet": "まだ計画していません",
 };
 
@@ -274,6 +278,9 @@ function showState(st, truth) {
   $("s_truth").textContent = truth ? fmtPose(truth) : "(mobile_sim が無い)";
   const m = st.map;
   $("s_map").textContent = `${m.path}(${m.width}×${m.height}、${m.resolution} m)`;
+  const o = st.options || {};
+  $("s_inflation").textContent = o.robot_radius === undefined ? "-"
+    : `半径 ${fmt(o.robot_radius)} m + 余裕 ${fmt(o.safety_margin)} m、重みを上げる範囲 ${fmt(o.inflation_radius)} m`;
   $("s_count").textContent = `${st.count} 回`;
 }
 
@@ -327,8 +334,11 @@ async function main() {
       });
     }
     if (!silent) {
+      const moved = [];
+      if (result.start_moved_to) moved.push("出発が障害物に近いので、まず離れます");
+      if (result.goal_moved_to) moved.push(`目標が障害物に近いので (${fmt(result.goal_moved_to.x)}, ${fmt(result.goal_moved_to.y)}) に寄せました`);
       say(result.ok
-        ? `経路を求めました: ${fmt(result.length)} m、${fmt(result.time_ms, 1)} ms`
+        ? `経路を求めました: ${fmt(result.length)} m、${fmt(result.time_ms, 1)} ms` + (moved.length ? `(${moved.join("。")})` : "")
         : `経路が求まりません: ${MESSAGES[result.message] || result.message}`);
     }
   }
@@ -359,6 +369,7 @@ async function main() {
       say(`読みました: ${info.path}`);
     } catch (err) { say(`読めませんでした: ${err.message}`); }
   });
+  $("show_costmap").addEventListener("change", () => { map.version = -1; });
   setInterval(() => {
     if ($("replan").checked && goal) plan(true).catch(showError);
   }, REPLAN_MS);
@@ -378,7 +389,7 @@ async function main() {
       // 地図は変わったときだけ取り直す
       if (!loadingMap && st.map.version !== map.version) {
         loadingMap = true;
-        map.load(client).catch(showError).finally(() => { loadingMap = false; });
+        map.load(client, $("show_costmap").checked).catch(showError).finally(() => { loadingMap = false; });
       }
       // 表示の範囲は地図の情報から決める(画像を読み終える前にも目標を置けるように)
       {

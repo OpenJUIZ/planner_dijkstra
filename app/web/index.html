@@ -43,6 +43,7 @@
       <label>ファイル <input id="map_path" type="text" value="assets/maps/default.yaml" size="20"></label>
       <p class="hint">ROS map_server の YAML。planner_dijkstra のカレントディレクトリ(juiz run なら展開先)からの相対パス</p>
       <button id="map_load" type="button">ファイルを読む</button>
+      <label><input id="show_costmap" type="checkbox" checked> 膨らませた地図を表示(濃い灰色: ロボットの中心が入れない、薄い灰色: 壁のそばで重みを上げる)</label>
       <p id="message" class="hint" role="status"></p>
       <h2>結果</h2>
       <dl id="state">
@@ -56,6 +57,7 @@
         <dt>amcl_pose</dt><dd id="s_amcl">-</dd>
         <dt>真の姿勢</dt><dd id="s_truth">-</dd>
         <dt>地図</dt><dd id="s_map">-</dd>
+        <dt>ロボットの大きさ</dt><dd id="s_inflation">-</dd>
         <dt>計画した回数</dt><dd id="s_count">-</dd>
       </dl>
     </aside>

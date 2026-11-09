@@ -1,7 +1,7 @@
 # .juizapp のマニフェスト(juiz docs/spec/app-package.md §4)。languages・targets・rust・files は juiz pack が書き足す
 format: 1
 name: planner_dijkstra
-version: 0.1.0
+version: 0.2.0
 kind: app
 description: "Global path planner: Dijkstra on the occupancy grid map from the robot pose to a goal (works with mobile_sim)"
 license: MIT OR Apache-2.0

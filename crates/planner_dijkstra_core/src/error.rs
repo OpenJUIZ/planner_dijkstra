@@ -35,6 +35,10 @@ pub enum PlanError {
     StartBlocked,
     #[error("the goal is on an obstacle")]
     GoalBlocked,
+    #[error("the start is too close to obstacles and no free cell is near it")]
+    StartTooClose,
+    #[error("the goal is too close to obstacles and no free cell is near it")]
+    GoalTooClose,
     #[error("no path from the start to the goal")]
     NoPath,
 }

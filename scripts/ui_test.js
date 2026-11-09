@@ -62,6 +62,22 @@ function check(cond, msg) {
     return n;
   });
   check(blue > 300, `canvas shows the path (${blue} blue px)`);
+
+  // 膨らませた地図(濃い灰色 96 の、ロボットの中心が入れない範囲)を描いている。外すと消える
+  const countLethal = () => page.evaluate(() => {
+    const c = document.getElementById("map");
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 96) < 3 && d[i] === d[i + 1] && d[i] === d[i + 2]) n++;
+    return n;
+  });
+  await page.waitForFunction(() => /半径 0\.20 m/.test(document.getElementById("s_inflation").textContent));
+  check(await countLethal() > 1000, "canvas shows the inflated map");
+  await page.uncheck("#show_costmap");
+  await page.waitForTimeout(800);
+  check(await countLethal() < 100, "unchecking shows the plain map");
+  await page.check("#show_costmap");
+  await page.waitForTimeout(800);
   await page.screenshot({ path: shot });
 
   // 壁の上の目標は「障害物の上」と出す(外周の壁 x = -4.95)
