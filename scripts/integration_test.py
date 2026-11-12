@@ -7,7 +7,7 @@ mobile_sim の真の姿勢から目標までの経路を求め、壁の上の目
   scripts/dev_plugin.sh
   python3 scripts/integration_test.py --mobile-sim <mobile_sim のリポジトリ> [--juiz <juiz のパス>] [--ui SCREENSHOT]
     mobile_sim は app/plugins/<target>/ にプラグインを置いておく(mobile_sim の scripts/dev_plugin.sh)
-  python3 scripts/integration_test.py --mobile-sim-juizapp mobile_sim-0.3.3.juizapp --juizapp dist/planner_dijkstra-0.2.0.juizapp
+  python3 scripts/integration_test.py --mobile-sim-juizapp mobile_sim-0.3.4.juizapp --juizapp dist/planner_dijkstra-0.2.1.juizapp
     パッケージで動かす(ポートは mobile_sim 8000、planner_dijkstra 8003)
   python3 scripts/integration_test.py --sim-url http://localhost:8000 --planner-url http://localhost:8003
     もう動いている mobile_sim と planner_dijkstra を試す(docker compose など)
