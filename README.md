@@ -22,15 +22,29 @@
 
 ## 動かす
 
-juiz 0.2.5 以降と mobile_sim 0.3 系が要ります。
+juiz 0.3.7 以降と mobile_sim 0.3 系が要ります。
 
 ```sh
-pip install juiz-cli==0.3.2
+pip install juiz-cli==0.3.7
 juiz run mobile_sim-0.3.4.juizapp        # 先に mobile_sim を動かしておく(http://localhost:8000/)
-juiz run planner_dijkstra-0.2.4.juizapp  # 別の端末で
+juiz run planner_dijkstra-0.2.5.juizapp  # 別の端末で
 ```
 
 http://localhost:8003/ を開き、「目標を置く」を押してから地図の上でドラッグすると、経路を求めて描きます。
+
+### 別の機械の mobile_sim につなぐ
+
+planner_dijkstra は mobile_sim を名前の登録で探します(juiz 0.3.7 のネーミングサービス)。同じ機械に mobile_sim が動いていなければ、LAN で `--advertise` 付きで起動した mobile_sim を見つけてつなぎます。pip の `juiz-cli` にはこの機能が入っています([ネーミングサービス](https://openjuiz.github.io/ja/guides/naming/#lan-の自動発見mdns))。
+
+```sh
+juiz run mobile_sim-<version>.juizapp --advertise      # mobile_sim の機械で
+juiz run planner_dijkstra-<version>.juizapp       # planner_dijkstra の機械で
+# using mobile_sim at http://192.168.0.10:8000 (found in the name list)
+```
+
+- マルチキャストが届かない網(Docker の bridge、一部の Wi-Fi、サブネット越え)では見つかりません。そのときは `--depend mobile_sim=http://192.168.0.10:8000` でつなぎ先を書くか、`--peer http://192.168.0.10:8000` で問い合わせ先を教えます。
+- mobile_sim は、planner_dijkstra がつないできたアドレスの 8003 番にトピックを送ります。mobile_sim の機械からその番号に届くようにしてください。
+- mobile_sim がどこにも見つからないと `mobile_sim is not registered on this machine or the LAN.` で止まります。先に mobile_sim を起動してください。juiz 0.3.6 以前で動かした mobile_sim は登録されないので、そのときは `--depend mobile_sim=ipc://mobile_sim` で指定します。
 
 ### Docker
 
@@ -83,9 +97,9 @@ AMCL の推定姿勢から計画するには、[navigation_manager](https://gith
 根の navigation_hub がトピックを中継し(`amcl_pose` → `nav/amcl_pose`)、planner_dijkstra は `nav/amcl_pose` を受けるように conf を替えて起動されます。
 
 ```sh
-pip install juiz-cli==0.3.2 navigation-manager
+pip install juiz-cli==0.3.7 navigation-manager
 navigation-manager stack mobile_sim-0.3.4.juizapp localization_amcl-0.1.2.juizapp \
-    planner_dijkstra-0.2.4.juizapp planner_dwa-0.1.1.juizapp navigation_hub-0.3.3.juizapp
+    planner_dijkstra-0.2.5.juizapp planner_dwa-0.1.1.juizapp navigation_hub-0.3.3.juizapp
 ```
 
 詳しくは [docs/plan.md](docs/plan.md#わかっている制約)。
